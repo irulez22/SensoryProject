@@ -3,7 +3,7 @@ let W,H,dpr,world='bubbles',t=0,items=[],balls=[],ws,intensity=.7,speed=1,hue=20
 let control={knob:50,roller:0,jx:0,jy:0},fps=30,quality='HIGH',lastFrame=performance.now(),fpsClock=lastFrame,fpsFrames=0,lastReport=0,physicsAcc=0,lastPaint=performance.now()-40,physicsMs=0,renderMs=0;
 const TARGET_MS=1000/30,ballSprites=new Map();
 const TAU=Math.PI*2,rnd=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function resize(){dpr=1;W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;ctx.setTransform(1,0,0,1,0,0);balls.forEach(b=>{b.x=clamp(b.x,b.r,W-b.r);b.y=clamp(b.y,b.r,H-b.r)})}
+function resize(){dpr=1;const scale=Math.min(1,1280/innerWidth,720/innerHeight);W=Math.round(innerWidth*scale);H=Math.round(innerHeight*scale);canvas.width=W;canvas.height=H;canvas.style.width='100vw';canvas.style.height='100vh';ctx.setTransform(1,0,0,1,0,0);balls.forEach(b=>{b.x=clamp(b.x,b.r,W-b.r);b.y=clamp(b.y,b.r,H-b.r)})}
 addEventListener('resize',resize);resize();
 function bubble(x=rnd(0,W),y=H+30,r=rnd(12,45),c='80,170,255'){if(items.length<140)items.push({kind:'bubble',x,y,r,vx:rnd(-.45,.45),vy:rnd(-.35,-1.05),c,w:rnd(0,TAU)})}
 function ripple(x=W/2,y=H/2,p=1,c='80,180,255'){if(items.length<140)items.push({kind:'ripple',x,y,r:5,p,life:1,c})}
