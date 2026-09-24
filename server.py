@@ -2,7 +2,7 @@
 import asyncio,json,os,subprocess
 from pathlib import Path
 from aiohttp import web,WSMsgType
-ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v0.8'
+ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v0.8.1'
 clients={'display':set(),'admin':set()};state={'world':'bubbles','intensity':70,'speed':100,'showControls':True}
 async def broadcast(payload,target=None):
     dead=[]
