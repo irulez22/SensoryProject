@@ -1,6 +1,7 @@
 const canvas=document.getElementById('world'),ctx=canvas.getContext('2d');
 let W,H,dpr,world='bubbles',t=0,items=[],balls=[],ws,intensity=.7,speed=1,hue=205,held=new Set();
-let control={knob:50,roller:0,jx:0,jy:0},fps=30,quality='HIGH',lastFrame=performance.now(),fpsClock=lastFrame,fpsFrames=0,lastReport=0,physicsAcc=0,lastPaint=performance.now()-40,physicsMs=0,renderMs=0;\nconst TARGET_MS=1000/30,ballSprites=new Map();
+let control={knob:50,roller:0,jx:0,jy:0},fps=30,quality='HIGH',lastFrame=performance.now(),fpsClock=lastFrame,fpsFrames=0,lastReport=0,physicsAcc=0,lastPaint=performance.now()-40,physicsMs=0,renderMs=0;
+const TARGET_MS=1000/30,ballSprites=new Map();
 const TAU=Math.PI*2,rnd=(a,b)=>a+Math.random()*(b-a),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function resize(){dpr=1;W=innerWidth;H=innerHeight;canvas.width=W;canvas.height=H;ctx.setTransform(1,0,0,1,0,0);balls.forEach(b=>{b.x=clamp(b.x,b.r,W-b.r);b.y=clamp(b.y,b.r,H-b.r)})}
 addEventListener('resize',resize);resize();
