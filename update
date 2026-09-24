@@ -2,24 +2,37 @@
 set -e
 cd "$(dirname "$0")"
 echo "================================"
-echo " Sensory World Updater"
+echo " Sensory World Fast Updater"
 echo "================================"
 echo
-echo "[1/5] Checking local files..."
+echo "[1/4] Checking local files..."
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "ERROR: Local files have been modified. Update cancelled."
   git status --short
   exit 1
 fi
-echo "[2/5] Downloading latest version..."
+
+OLD_HEAD=$(git rev-parse HEAD)
+
+echo "[2/4] Downloading latest version..."
 git pull --ff-only origin main
-echo "[3/5] Updating Python packages..."
-.venv/bin/pip install -r requirements.txt --quiet
-echo "[4/5] Restarting Sensory World..."
+
+NEW_HEAD=$(git rev-parse HEAD)
+
+if [ "$OLD_HEAD" != "$NEW_HEAD" ] && git diff --name-only "$OLD_HEAD" "$NEW_HEAD" -- requirements.txt | grep -q '^requirements.txt$'; then
+  echo "      requirements.txt changed - updating Python packages..."
+  .venv/bin/pip install -r requirements.txt --quiet
+else
+  echo "      Python requirements unchanged - skipping pip."
+fi
+
+echo "[3/4] Restarting Sensory World..."
 sudo systemctl restart bubbleworld.service
-sleep 1
-echo "[5/5] Refreshing kiosk screen..."
+
+echo "[4/4] Refreshing kiosk screen..."
+sleep 0.3
 DISPLAY=:0 xdotool key ctrl+r
+
 echo
 echo "Update complete!"
 git log -1 --oneline
