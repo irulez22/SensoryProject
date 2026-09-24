@@ -5,18 +5,21 @@ echo "================================"
 echo " Sensory World Updater"
 echo "================================"
 echo
-echo "[1/4] Checking local files..."
+echo "[1/5] Checking local files..."
 if ! git diff --quiet || ! git diff --cached --quiet; then
   echo "ERROR: Local files have been modified. Update cancelled."
   git status --short
   exit 1
 fi
-echo "[2/4] Downloading latest version..."
+echo "[2/5] Downloading latest version..."
 git pull --ff-only origin main
-echo "[3/4] Updating Python packages..."
+echo "[3/5] Updating Python packages..."
 .venv/bin/pip install -r requirements.txt --quiet
-echo "[4/4] Restarting Sensory World..."
+echo "[4/5] Restarting Sensory World..."
 sudo systemctl restart bubbleworld.service
+sleep 1
+echo "[5/5] Refreshing kiosk screen..."
+DISPLAY=:0 xdotool key ctrl+r
 echo
 echo "Update complete!"
 git log -1 --oneline
