@@ -3,7 +3,37 @@ import asyncio,json,os,subprocess
 from pathlib import Path
 from aiohttp import web,WSMsgType
 ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v0.8.1'
-clients={'display':set(),'admin':set()};state={'world':'bubbles','intensity':70,'speed':100,'showControls':True}
+clients={'display':set(),'admin':set()}
+
+def pi_stats():
+    try:
+        temp=float(Path('/sys/class/thermal/thermal_zone0/temp').read_text().strip())/1000
+    except Exception: temp=None
+    try:
+        raw=subprocess.check_output(['vcgencmd','get_throttled'],text=True,timeout=1).strip()
+        throttled=raw.split('=',1)[1] if '=' in raw else raw
+    except Exception: throttled=None
+    try:
+        raw=subprocess.check_output(['vcgencmd','measure_clock','arm'],text=True,timeout=1).strip()
+        clock_mhz=round(int(raw.split('=',1)[1])/1_000_000) if '=' in raw else None
+    except Exception: clock_mhz=None
+    return {'tempC':round(temp,1) if temp is not None else None,'throttled':throttled,'clockMHz':clock_mhz}
+
+async def system_reporter():
+    while True:
+        if clients['admin']:
+            await broadcast({'type':'system_stats',**pi_stats()},'admin')
+        await asyncio.sleep(2)
+
+async def startup(app):
+    app['system_reporter']=asyncio.create_task(system_reporter())
+
+async def cleanup(app):
+    app['system_reporter'].cancel()
+    try: await app['system_reporter']
+    except asyncio.CancelledError: pass
+
+state={'world':'bubbles','intensity':70,'speed':100,'showControls':True}
 async def broadcast(payload,target=None):
     dead=[]
     for g in ([target] if target else ['display','admin']):
@@ -42,5 +72,5 @@ async def ws_handler(request):
 async def reboot_later():await asyncio.sleep(1);subprocess.run(['sudo','/sbin/reboot'])
 async def admin(request):return web.FileResponse(WEB/'admin.html')
 async def health(request):return web.json_response({'ok':True,'version':VERSION,'displayConnected':bool(clients['display']),'state':state})
-app=web.Application();app.router.add_get('/ws',ws_handler);app.router.add_get('/admin',admin);app.router.add_get('/health',health);app.router.add_static('/',WEB,show_index=True)
+app=web.Application();app.on_startup.append(startup);app.on_cleanup.append(cleanup);app.router.add_get('/ws',ws_handler);app.router.add_get('/admin',admin);app.router.add_get('/health',health);app.router.add_static('/',WEB,show_index=True)
 if __name__=='__main__':web.run_app(app,host='0.0.0.0',port=int(os.environ.get('PORT','8000')))
