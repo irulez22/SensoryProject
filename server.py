@@ -4,6 +4,7 @@ from pathlib import Path
 from aiohttp import web,WSMsgType
 ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v0.9'
 clients={'display':set(),'admin':set()}
+gpio_button=None
 
 def pi_stats():
     try:
@@ -25,10 +26,25 @@ async def system_reporter():
             await broadcast({'type':'system_stats',**pi_stats()},'admin')
         await asyncio.sleep(2)
 
+async def gpio_reporter():
+    global gpio_button
+    try:
+        from gpiozero import Button
+        gpio_button=Button(17,pull_up=True,bounce_time=0.05)
+        loop=asyncio.get_running_loop()
+        gpio_button.when_pressed=lambda: asyncio.run_coroutine_threadsafe(broadcast({'type':'input','event':'BLUE_DOWN'},'display'),loop)
+        gpio_button.when_released=lambda: asyncio.run_coroutine_threadsafe(broadcast({'type':'input','event':'BLUE_UP'},'display'),loop)
+        print("GPIO: Blue button ready on GPIO17 (physical pin 11) to GND",flush=True)
+    except Exception as e:
+        print(f"GPIO: disabled ({e})",flush=True)
+
 async def startup(app):
     app['system_reporter']=asyncio.create_task(system_reporter())
+    await gpio_reporter()
 
 async def cleanup(app):
+    global gpio_button
+    if gpio_button: gpio_button.close()
     app['system_reporter'].cancel()
     try: await app['system_reporter']
     except asyncio.CancelledError: pass
