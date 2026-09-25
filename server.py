@@ -4,7 +4,7 @@ from pathlib import Path
 from aiohttp import web,WSMsgType
 ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v0.9'
 clients={'display':set(),'admin':set()}
-gpio_button=None
+gpio_buttons=[]
 
 def pi_stats():
     try:
@@ -27,15 +27,28 @@ async def system_reporter():
         await asyncio.sleep(2)
 
 async def gpio_reporter():
-    global gpio_button
+    global gpio_buttons
     try:
         from gpiozero import Button
-        gpio_button=Button(17,pull_up=True,bounce_time=0.05)
         loop=asyncio.get_running_loop()
-        gpio_button.when_pressed=lambda: asyncio.run_coroutine_threadsafe(broadcast({'type':'input','event':'BLUE_DOWN'},'display'),loop)
-        gpio_button.when_released=lambda: asyncio.run_coroutine_threadsafe(broadcast({'type':'input','event':'BLUE_UP'},'display'),loop)
-        print("GPIO: Blue button ready on GPIO17 (physical pin 11) to GND",flush=True)
+        button_map=[
+            ('BLUE',17,11),
+            ('RED',27,13),
+            ('GREEN',22,15),
+            ('YELLOW',23,16),
+        ]
+        for name,gpio,pin in button_map:
+            button=Button(gpio,pull_up=True,bounce_time=0.05)
+            button.when_pressed=lambda n=name: asyncio.run_coroutine_threadsafe(
+                broadcast({'type':'input','event':f'{n}_DOWN'},'display'),loop)
+            button.when_released=lambda n=name: asyncio.run_coroutine_threadsafe(
+                broadcast({'type':'input','event':f'{n}_UP'},'display'),loop)
+            gpio_buttons.append(button)
+            print(f"GPIO: {name.title()} button ready on GPIO{gpio} (physical pin {pin}) to GND",flush=True)
     except Exception as e:
+        for button in gpio_buttons:
+            button.close()
+        gpio_buttons=[]
         print(f"GPIO: disabled ({e})",flush=True)
 
 async def startup(app):
@@ -43,8 +56,10 @@ async def startup(app):
     await gpio_reporter()
 
 async def cleanup(app):
-    global gpio_button
-    if gpio_button: gpio_button.close()
+    global gpio_buttons
+    for button in gpio_buttons:
+        button.close()
+    gpio_buttons=[]
     app['system_reporter'].cancel()
     try: await app['system_reporter']
     except asyncio.CancelledError: pass
