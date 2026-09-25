@@ -2,7 +2,7 @@
 import asyncio,json,os,subprocess
 from pathlib import Path
 from aiohttp import web,WSMsgType
-ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v0.8.1'
+ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v0.9'
 clients={'display':set(),'admin':set()}
 
 def pi_stats():
