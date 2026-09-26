@@ -2,7 +2,7 @@
 import asyncio,json,os,subprocess
 from pathlib import Path
 from aiohttp import web,WSMsgType
-ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v10.1'
+ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v10.2'
 clients={'display':set(),'admin':set()}
 gpio_buttons=[]
 
