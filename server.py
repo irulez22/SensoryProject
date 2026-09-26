@@ -110,13 +110,23 @@ async def run_update():
     update_running=True
     await broadcast({'type':'update_status','status':'running','message':'Downloading and installing update…'},'admin')
     try:
-        proc=await asyncio.create_subprocess_exec('bash',str(ROOT/'update'),cwd=str(ROOT),stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT)
+        # Run the updater with systemd detached from this service.  The updater
+        # restarts bubbleworld.service, so it must not be our child process.
+        # --no-block returns before the transient unit finishes; Admin will
+        # disconnect during restart and reconnect to the new server.
+        unit='bubbleworld-update'
+        proc=await asyncio.create_subprocess_exec(
+            'sudo','-n','/usr/bin/systemd-run','--unit',unit,'--collect',
+            '--property=WorkingDirectory='+str(ROOT),
+            '/usr/bin/bash',str(ROOT/'update'),
+            stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT)
         out,_=await proc.communicate()
         log=out.decode(errors='replace')[-4000:]
         if proc.returncode:
-            await broadcast({'type':'update_status','status':'error','message':f'Update failed (exit {proc.returncode})','log':log},'admin')
+            await broadcast({'type':'update_status','status':'error','message':f'Could not start updater (exit {proc.returncode})','log':log},'admin')
             update_running=False
-        # On success the updater restarts this service, so this process normally ends here.
+        else:
+            await broadcast({'type':'update_status','status':'running','message':'Updater started. The server will reconnect automatically.'},'admin')
     except Exception as e:
         await broadcast({'type':'update_status','status':'error','message':f'Update failed: {e}'},'admin')
         update_running=False
