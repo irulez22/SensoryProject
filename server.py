@@ -2,7 +2,8 @@
 import asyncio,json,os,subprocess
 from pathlib import Path
 from aiohttp import web,WSMsgType
-ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v10.2'
+ROOT=Path(__file__).resolve().parent;WEB=ROOT/'web';VERSION='v10.3'
+update_running=False
 clients={'display':set(),'admin':set()}
 gpio_buttons=[]
 
@@ -95,11 +96,31 @@ async def ws_handler(request):
                 elif cmd=='input':
                     if data.get('event'):await broadcast({'type':'input','event':data['event']},'display')
                 elif cmd=='control':await broadcast({'type':'control','control':data.get('control',{})},'display')
+                elif cmd=='update':
+                    if update_running:await ws.send_json({'type':'update_status','status':'running','message':'Update already in progress…'})
+                    else:asyncio.create_task(run_update())
                 elif cmd=='reboot':await ws.send_json({'type':'notice','message':'Reboot requested'});asyncio.create_task(reboot_later())
             elif role=='display' and typ=='screen_state':await broadcast(dict(data,type='screen_state'),'admin')
     finally:
         clients[role].discard(ws);await broadcast({'type':'status','displayConnected':bool(clients['display']),'version':VERSION},'admin')
     return ws
+async def run_update():
+    global update_running
+    if update_running:return
+    update_running=True
+    await broadcast({'type':'update_status','status':'running','message':'Downloading and installing update…'},'admin')
+    try:
+        proc=await asyncio.create_subprocess_exec('bash',str(ROOT/'update'),cwd=str(ROOT),stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT)
+        out,_=await proc.communicate()
+        log=out.decode(errors='replace')[-4000:]
+        if proc.returncode:
+            await broadcast({'type':'update_status','status':'error','message':f'Update failed (exit {proc.returncode})','log':log},'admin')
+            update_running=False
+        # On success the updater restarts this service, so this process normally ends here.
+    except Exception as e:
+        await broadcast({'type':'update_status','status':'error','message':f'Update failed: {e}'},'admin')
+        update_running=False
+
 async def reboot_later():await asyncio.sleep(1);subprocess.run(['sudo','/sbin/reboot'])
 async def admin(request):return web.FileResponse(WEB/'admin.html')
 async def health(request):return web.json_response({'ok':True,'version':VERSION,'displayConnected':bool(clients['display']),'state':state})
